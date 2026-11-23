@@ -6,7 +6,7 @@ const QUESTIONS = window.GH300_QUESTIONS;
 
 const STORE_KEY = "gh300.v1";
 const EXAM_MINUTES = 100;
-const TARGET_PCT = 75; // training threshold, not GitHub's published pass mark
+const TARGET_PCT = 75; // training threshold; the real pass is a scaled 700/1000
 const BOX_DAYS = [0, 0, 1, 3, 7, 21]; // index = Leitner box 1..5
 
 const ALLOWED_HOSTS = [
@@ -18,6 +18,8 @@ const ALLOWED_HOSTS = [
   "ruby-doc.org",
   // GitHub Docs defers Copilot data-retention questions to the Trust Center.
   "copilot.github.trust.page",
+  "code.visualstudio.com",
+  "github.blog",
 ];
 
 const $ = (sel) => document.querySelector(sel);
@@ -285,14 +287,30 @@ function renderQuestion(q, index, opts) {
     const span = document.createElement("span");
     span.textContent = q.options[originalIdx];
     label.append(input, span);
+    if (opts.onChange) input.addEventListener("change", opts.onChange);
     wrap.appendChild(label);
     inputs.push({ input, label, originalIdx });
   });
+
+  let flagBtn = null;
+  if (opts.onFlag) {
+    flagBtn = document.createElement("button");
+    flagBtn.type = "button";
+    flagBtn.className = "ghost flag";
+    flagBtn.textContent = "Flag for review";
+    flagBtn.addEventListener("click", () => {
+      const on = wrap.classList.toggle("flagged");
+      flagBtn.textContent = on ? "Flagged" : "Flag for review";
+      opts.onFlag();
+    });
+    wrap.appendChild(flagBtn);
+  }
 
   const selected = () =>
     inputs.filter((i) => i.input.checked).map((i) => i.originalIdx);
 
   const reveal = () => {
+    if (flagBtn) flagBtn.remove();
     const chosen = selected();
     const correct = sameSet(chosen, q.answer);
     inputs.forEach((i) => {
@@ -409,7 +427,7 @@ function startExam() {
   const host = $("#exam-host");
   host.textContent = "";
   qs.forEach((q, i) => {
-    const r = renderQuestion(q, i, { instant: false });
+    const r = renderQuestion(q, i, { instant: false, onChange: examCounter, onFlag: examCounter });
     examItems.push({ q, r });
     host.appendChild(r.el);
   });
@@ -417,7 +435,7 @@ function startExam() {
   $("#exam-intro").classList.add("hidden");
   $("#exam-result").classList.add("hidden");
   $("#exam-run").classList.remove("hidden");
-  $("#exam-counter").textContent = `${total} questions`;
+  examCounter();
 
   let left = EXAM_MINUTES * 60;
   const tick = () => {
@@ -435,6 +453,23 @@ function startExam() {
   tick();
   clearInterval(examTimer);
   examTimer = setInterval(tick, 1000);
+}
+
+function examCounter() {
+  const answered = examItems.filter(({ r }) => r.selected().length).length;
+  const flagged = examItems.filter(({ r }) => r.el.classList.contains("flagged")).length;
+  $("#exam-counter").textContent =
+    `${answered} of ${examItems.length} answered` + (flagged ? `, ${flagged} flagged` : "");
+  $("#exam-next-flag").disabled = flagged === 0;
+}
+
+// Like the real exam's review screen: cycle through flagged questions in order.
+function nextFlagged() {
+  const flagged = examItems.map(({ r }) => r.el).filter((el) => el.classList.contains("flagged"));
+  if (!flagged.length) return;
+  const offset = $("#exam-run .toolbar").offsetHeight + 60;
+  const next = flagged.find((el) => el.getBoundingClientRect().top > offset + 5) || flagged[0];
+  window.scrollTo({ top: window.scrollY + next.getBoundingClientRect().top - offset, behavior: "smooth" });
 }
 
 function submitExam(auto) {
@@ -473,7 +508,7 @@ function submitExam(auto) {
   sub.className = "lede";
   sub.textContent =
     `${right} of ${total} correct. Training threshold is ${TARGET_PCT} percent. ` +
-    "GitHub does not publish the real pass mark.";
+    "The real exam needs a scaled 700 of 1000, which is not a percentage.";
   res.appendChild(sub);
 
   DOMAINS.forEach((d) => {
@@ -515,6 +550,7 @@ function statRow(label, right, total) {
 }
 
 $("#exam-start").addEventListener("click", startExam);
+$("#exam-next-flag").addEventListener("click", nextFlagged);
 $("#exam-submit").addEventListener("click", () => submitExam(false));
 $("#exam-abort").addEventListener("click", () => {
   if (!confirm("Abandon this paper? Nothing is recorded.")) return;
@@ -619,6 +655,33 @@ $("#stats-export").addEventListener("click", () => {
   URL.revokeObjectURL(a.href);
 });
 
+// Accept only the four known keys with the right shapes, so a stray file cannot corrupt state.
+function parseProgress(text) {
+  const data = JSON.parse(text);
+  const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
+  if (!isObj(data) || !isObj(data.boxes) || !isObj(data.answers) || !Array.isArray(data.exams) || !isObj(data.missed)) {
+    throw new Error("Not a GH-300 progress export.");
+  }
+  return { boxes: data.boxes, answers: data.answers, exams: data.exams, missed: data.missed };
+}
+
+$("#stats-import").addEventListener("click", () => $("#stats-import-file").click());
+$("#stats-import-file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const incoming = parseProgress(await file.text());
+    if (!confirm("Replace the progress in this browser with the imported file?")) return;
+    state = Object.assign(blankState(), incoming);
+    save();
+    updateReviewBadge();
+    renderStats();
+  } catch (err) {
+    alert(`Import failed: ${err.message}`);
+  }
+});
+
 $("#stats-clear").addEventListener("click", () => {
   if (!confirm("Delete all flashcard boxes, answer history, mistakes and exam results?")) return;
   state = blankState();
@@ -634,6 +697,11 @@ fillDomainSelect($("#quiz-domain"), "All domains");
 renderHome();
 startQuiz();
 updateReviewBadge();
+
+// Offline support when served over http(s); file:// cannot register a service worker.
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 // Flashcard keyboard shortcuts: space reveals, 1/2/3 grade. Built for short sessions.
 document.addEventListener("keydown", (e) => {

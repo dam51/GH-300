@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GH-300 trainer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#161b22">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -64,6 +66,9 @@
     <p class="lede">Copilot plans, model lists and feature availability change often. Every
       question carries a link to the GitHub Docs page it came from. If a card and the live
       doc disagree, the doc wins. Fix the card, do not memorise the card.</p>
+    <p class="lede">Questions with ids starting "w" are adapted from Tim Warner's
+      <a href="https://github.com/timothywarner-org/copilot-cert-prep" target="_blank" rel="noopener">copilot-cert-prep</a>
+      (MIT licence, see data/questions-warner.js) and re-checked against current docs.</p>
   </section>
 
   <section id="view-cards" class="view hidden">
@@ -144,9 +149,9 @@
       <h2>Mock exam</h2>
       <p class="lede">Questions are drawn in blueprint proportions. The timer is set to the
         real exam length of 100 minutes. No feedback until you submit.</p>
-      <p class="lede"><strong>The real pass mark is not published by GitHub.</strong> This app
-        uses 75 percent as a working target. Treat it as a training threshold, not the
-        official one.</p>
+      <p class="lede"><strong>The real exam needs a scaled score of 700 out of 1000.</strong>
+        That is not 70 percent correct, so this app uses 75 percent as a working target.
+        Treat it as a training threshold, not the official one.</p>
       <label>Length
         <select id="exam-length">
           <option value="30">30 questions</option>
@@ -162,6 +167,7 @@
         <strong id="exam-clock" class="clock">100:00</strong>
         <span id="exam-counter" class="muted"></span>
         <span class="spacer"></span>
+        <button id="exam-next-flag" class="ghost" disabled>Next flagged</button>
         <button id="exam-submit" class="primary">Submit</button>
         <button id="exam-abort" class="ghost">Abandon</button>
       </div>
@@ -173,12 +179,15 @@
 
   <section id="view-stats" class="view hidden">
     <h2>Per-domain accuracy</h2>
-    <p class="lede">Counts every quiz and mock exam answer recorded in this browser.</p>
+    <p class="lede">Counts every quiz and mock exam answer recorded in this browser. To move
+      progress to another device, export it here and import the file there.</p>
     <div id="stats-host"></div>
     <h2>Mock exam history</h2>
     <div id="stats-exams"></div>
     <div class="toolbar">
       <button id="stats-export" class="ghost">Export progress as JSON</button>
+      <button id="stats-import" class="ghost">Import progress</button>
+      <input id="stats-import-file" type="file" accept="application/json,.json" hidden>
       <button id="stats-clear" class="bad">Clear all progress</button>
     </div>
   </section>
@@ -188,6 +197,8 @@
 <script src="data/domains.js"></script>
 <script src="data/flashcards.js"></script>
 <script src="data/questions.js"></script>
+<script src="data/questions-warner.js"></script>
+<script src="data/questions-gap.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
