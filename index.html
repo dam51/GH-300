@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GH-300 trainer</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <h1>GH-300 trainer</h1>
+  <nav id="nav">
+    <button data-view="home" class="active">Home</button>
+    <button data-view="cards">Flashcards</button>
+    <button data-view="quiz">Quiz</button>
+    <button data-view="review">Review<span id="review-badge" class="badge hidden"></span></button>
+    <button data-view="exam">Mock exam</button>
+    <button data-view="stats">Stats</button>
+  </nav>
+</header>
+
+<main>
+
+  <section id="view-home" class="view">
+    <h2>Pick a mode</h2>
+    <p class="lede">Content is local, offline and editable. Progress is stored in this
+      browser only.</p>
+
+    <div class="cardgrid">
+      <div class="modecard">
+        <h3>Flashcards</h3>
+        <p>Leitner spaced repetition over <span data-count="cards"></span> cards. Cards you
+          get wrong come back sooner. Good for short blocks between meetings.</p>
+        <button class="primary" data-view="cards">Start</button>
+      </div>
+      <div class="modecard">
+        <h3>Quiz</h3>
+        <p>Pick a domain, answer <span data-count="questions"></span> possible questions with
+          instant feedback, an explanation and a link to the source doc.</p>
+        <button class="primary" data-view="quiz">Start</button>
+      </div>
+      <div class="modecard">
+        <h3>Review mistakes</h3>
+        <p>Drill only the questions you have got wrong. A question leaves the list after
+          two correct answers in a row.</p>
+        <button class="primary" data-view="review">Start</button>
+      </div>
+      <div class="modecard">
+        <h3>Mock exam</h3>
+        <p>Blueprint-weighted draw, 100 minute countdown, no feedback until the end, then a
+          per-domain breakdown.</p>
+        <button class="primary" data-view="exam">Start</button>
+      </div>
+    </div>
+
+    <h2>Exam blueprint</h2>
+    <p class="lede">Weights are taken from the official GitHub certification page. The mock
+      exam samples questions in these proportions.</p>
+    <ul id="blueprint" class="blueprint"></ul>
+
+    <h2>Health warning</h2>
+    <p class="lede" id="verified-line"></p>
+    <p class="lede">Copilot plans, model lists and feature availability change often. Every
+      question carries a link to the GitHub Docs page it came from. If a card and the live
+      doc disagree, the doc wins. Fix the card, do not memorise the card.</p>
+  </section>
+
+  <section id="view-cards" class="view hidden">
+    <div class="toolbar">
+      <label>Domain
+        <select id="card-domain"></select>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="card-due-only" checked> Due only
+      </label>
+      <span class="spacer"></span>
+      <span id="card-progress" class="muted"></span>
+      <button id="card-reset" class="ghost">Reset box state</button>
+    </div>
+
+    <div id="card-empty" class="empty hidden">
+      <p>Nothing due in this filter. Untick "Due only" to drill anyway.</p>
+    </div>
+
+    <div id="card-area" class="flashcard">
+      <div class="pill" id="card-domain-label"></div>
+      <div class="cardface" id="card-front"></div>
+      <div class="cardface back hidden" id="card-back"></div>
+      <div class="cardactions">
+        <button id="card-show" class="primary">Show answer</button>
+        <span id="card-grade" class="hidden">
+          <button id="card-again" class="bad">Got it wrong</button>
+          <button id="card-hard" class="warn">Shaky</button>
+          <button id="card-good" class="good">Knew it</button>
+        </span>
+      </div>
+      <a id="card-source" class="source" target="_blank" rel="noopener noreferrer">Source doc</a>
+      <p class="muted" style="margin-top:10px">
+        <span class="kbd">space</span>reveal, then
+        <span class="kbd">1</span>wrong
+        <span class="kbd">2</span>shaky
+        <span class="kbd">3</span>knew it
+      </p>
+    </div>
+  </section>
+
+  <section id="view-quiz" class="view hidden">
+    <div class="toolbar">
+      <label>Domain
+        <select id="quiz-domain"></select>
+      </label>
+      <label>Questions
+        <select id="quiz-length">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="40">40</option>
+          <option value="0">All</option>
+        </select>
+      </label>
+      <button id="quiz-start" class="primary">New quiz</button>
+      <span class="spacer"></span>
+      <span id="quiz-progress" class="muted"></span>
+    </div>
+    <div id="quiz-host"></div>
+  </section>
+
+  <section id="view-review" class="view hidden">
+    <div class="toolbar">
+      <span id="review-summary" class="muted"></span>
+      <span class="spacer"></span>
+      <button id="review-refresh" class="ghost">Reload list</button>
+      <button id="review-clear" class="ghost">Forget all mistakes</button>
+    </div>
+    <div id="review-empty" class="empty hidden">
+      <p>Nothing to review. Sit a quiz or a mock exam, and anything you get wrong will
+        collect here.</p>
+    </div>
+    <div id="review-host"></div>
+  </section>
+
+  <section id="view-exam" class="view hidden">
+    <div id="exam-intro">
+      <h2>Mock exam</h2>
+      <p class="lede">Questions are drawn in blueprint proportions. The timer is set to the
+        real exam length of 100 minutes. No feedback until you submit.</p>
+      <p class="lede"><strong>The real pass mark is not published by GitHub.</strong> This app
+        uses 75 percent as a working target. Treat it as a training threshold, not the
+        official one.</p>
+      <label>Length
+        <select id="exam-length">
+          <option value="30">30 questions</option>
+          <option value="45" selected>45 questions</option>
+          <option value="60">60 questions</option>
+        </select>
+      </label>
+      <button id="exam-start" class="primary">Start exam</button>
+    </div>
+
+    <div id="exam-run" class="hidden">
+      <div class="toolbar sticky">
+        <strong id="exam-clock" class="clock">100:00</strong>
+        <span id="exam-counter" class="muted"></span>
+        <span class="spacer"></span>
+        <button id="exam-submit" class="primary">Submit</button>
+        <button id="exam-abort" class="ghost">Abandon</button>
+      </div>
+      <div id="exam-host"></div>
+    </div>
+
+    <div id="exam-result" class="hidden"></div>
+  </section>
+
+  <section id="view-stats" class="view hidden">
+    <h2>Per-domain accuracy</h2>
+    <p class="lede">Counts every quiz and mock exam answer recorded in this browser.</p>
+    <div id="stats-host"></div>
+    <h2>Mock exam history</h2>
+    <div id="stats-exams"></div>
+    <div class="toolbar">
+      <button id="stats-export" class="ghost">Export progress as JSON</button>
+      <button id="stats-clear" class="bad">Clear all progress</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="data/domains.js"></script>
+<script src="data/flashcards.js"></script>
+<script src="data/questions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
